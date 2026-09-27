@@ -1,6 +1,6 @@
 import argparse
 
-from actions import allowed_buttons
+from actions import allowed_buttons, describe_front
 from game import Game
 from jev import ask_jev
 from memory import History, describe_effect
@@ -19,7 +19,10 @@ def run(steps, watch, start_save):
     screen_text = read_screen_text(game)
 
     for step in range(1, steps + 1):
-        text = state_to_text(state, describe_surroundings(game, state), screen_text)
+        surroundings = describe_surroundings(game, state)
+        if "collision" in state:
+            surroundings.insert(0, describe_front(game, state))
+        text = state_to_text(state, surroundings, screen_text)
         text += "\n" + history.to_text()
         buttons = allowed_buttons(game, state, screen_text)
         result = ask_jev(text, STANDING_GOAL, buttons)
