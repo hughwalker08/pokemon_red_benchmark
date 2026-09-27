@@ -2,14 +2,18 @@ from pokemon_agent.collision import build_collision_grid, render_ascii_map
 from pokemon_agent.emulator import create_emulator
 from pokemon_agent.memory.red import PokemonRedReader
 from pokemon_agent.state.builder import build_game_state
+from pyboy import PyBoy
 
 ROM_PATH = "roms/pokemon_red.gb"
 BUTTONS = ["up", "down", "left", "right", "a", "b", "start", "select"]
 
 
 class Game:
-    def __init__(self):
+    def __init__(self, watch=False):
         self.emulator = create_emulator(ROM_PATH)
+        if watch:
+            self.emulator._pyboy.stop(save=False)
+            self.emulator._pyboy = PyBoy(ROM_PATH, window="SDL2")
         self.reader = PokemonRedReader(self.emulator)
         self.visited_maps = set()
 
