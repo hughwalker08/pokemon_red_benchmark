@@ -1,26 +1,39 @@
-import requests
+from pokemon_agent.collision import build_collision_grid, render_ascii_map
+from pokemon_agent.emulator import create_emulator
+from pokemon_agent.memory.red import PokemonRedReader
+from pokemon_agent.state.builder import build_game_state
 
-from config import GAME_SERVER
-
-
-def get_state():
-    response = requests.get(f"{GAME_SERVER}/state")
-    response.raise_for_status()
-    return response.json()
+ROM_PATH = "roms/pokemon_red.gb"
+BUTTONS = ["up", "down", "left", "right", "a", "b", "start", "select"]
 
 
-def do(action):
-    response = requests.post(f"{GAME_SERVER}/action", json={"actions": [action]})
-    response.raise_for_status()
-    return response.json()["state_after"]
+class Game:
+    def __init__(self):
+        self.emulator = create_emulator(ROM_PATH)
+        self.reader = PokemonRedReader(self.emulator)
 
+    def get_state(self):
+        state = build_game_state(self.reader)
+        if not state["battle"]["in_battle"]:
+            collision = build_collision_grid(self.emulator)
+            collision["ascii"] = render_ascii_map(collision, legend=True)
+            state["collision"] = collision
+        return state
 
-def load(save_name):
-    response = requests.post(f"{GAME_SERVER}/load", json={"name": save_name})
-    response.raise_for_status()
-    return response.json()["state_after"]
+    def do(self, button):
+        if button not in BUTTONS:
+            raise ValueError(f"Unknown button: {button}")
+        self.emulator.press(button, 8)
+        self.emulator.tick(12)
+        return self.get_state()
 
+    def load(self, save_name):
+        self.emulator.load_state(f"saves/{save_name}.state")
+        self.emulator.tick(2)
+        return self.get_state()
 
-def save(save_name):
-    response = requests.post(f"{GAME_SERVER}/save", json={"name": save_name})
-    response.raise_for_status()
+    def save(self, save_name):
+        self.emulator.save_state(f"saves/{save_name}.state")
+
+    def read_memory(self, address):
+        return self.emulator._pyboy.memory[address]

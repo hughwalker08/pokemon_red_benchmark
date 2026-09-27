@@ -11,5 +11,3 @@ JEV_ENDPOINT = os.getenv("JEV_ENDPOINT", "https://openrouter.ai/api/alpha/decisi
 
 SOL_MODEL = os.getenv("SOL_MODEL", "openai/gpt-6-sol")
 SOL_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-
-GAME_SERVER = "http://localhost:8765"
