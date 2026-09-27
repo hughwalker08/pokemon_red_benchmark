@@ -9,7 +9,9 @@ SPRITE_DATA_1 = 0xC100   # 16 bytes per sprite; byte 0 = picture (0 means empty)
 SPRITE_DATA_2 = 0xC200   # 16 bytes per sprite; bytes 4 and 5 = y and x (plus 4)
 MISSABLE_LIST = 0xD5CE   # pairs of (sprite number, missable number), ends with 255
 MISSABLE_FLAGS = 0xD5A6  # one bit per missable number; 1 means hidden
-MAP_HEIGHT = 0xD368     # in blocks (1 block = 2x2 tiles)
+NUM_SIGNS = 0xD4B0       # how many signs this map has
+SIGN_TABLE = 0xD4B1      # 2 bytes per sign: y, x
+MAP_HEIGHT = 0xD368    # in blocks (1 block = 2x2 tiles)
 MAP_WIDTH = 0xD369
 CONNECTIONS = 0xD370     # one on/off bit per edge: north=8, south=4, west=2, east=1
 EDGE_MAP = {"north": 0xD371, "south": 0xD37C, "west": 0xD387, "east": 0xD392}
@@ -27,6 +29,15 @@ def read_warps(game):
             dest_map = game.read_memory(LAST_MAP)
         warps.append({"x": x, "y": y, "to": MAP_NAMES.get(dest_map, f"map {dest_map}")})
     return warps
+
+
+def read_signs(game):
+    signs = []
+    for i in range(game.read_memory(NUM_SIGNS)):
+        y = game.read_memory(SIGN_TABLE + 2 * i)
+        x = game.read_memory(SIGN_TABLE + 2 * i + 1)
+        signs.append({"x": x, "y": y})
+    return signs
 
 
 def is_hidden(game, sprite):
@@ -101,4 +112,6 @@ def describe_surroundings(game, state):
             lines.append(f"{edge['side'].capitalize()} edge leads somewhere unexplored: {edge['steps']}")
     for person in read_people(game):
         lines.append(f"Person/object: {direction_to(player, person)}")
+    for sign in read_signs(game):
+        lines.append(f"Sign: {direction_to(player, sign)}")
     return lines

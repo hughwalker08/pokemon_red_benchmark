@@ -1,3 +1,5 @@
+from collections import Counter
+
 from pokemon_agent.collision import build_collision_grid, render_ascii_map
 from pokemon_agent.emulator import create_emulator
 from pokemon_agent.memory.red import PokemonRedReader
@@ -18,11 +20,15 @@ class Game:
             self.emulator._pyboy.stop(save=False)
             self.emulator._pyboy = PyBoy(ROM_PATH, window="SDL2")
         self.reader = PokemonRedReader(self.emulator)
-        self.visited_maps = set()
+        self.visited_maps = Counter()
+        self.current_map = None
 
     def get_state(self):
         state = build_game_state(self.reader)
-        self.visited_maps.add(state["map"]["map_name"])
+        map_name = state["map"]["map_name"]
+        if map_name != self.current_map:
+            self.visited_maps[map_name] += 1
+            self.current_map = map_name
         if not state["battle"]["in_battle"]:
             collision = build_collision_grid(self.emulator)
             collision["ascii"] = render_ascii_map(collision, legend=True)
@@ -55,7 +61,8 @@ class Game:
     def load(self, save_name):
         self.emulator.load_state(f"saves/{save_name}.state")
         self.emulator.tick(2)
-        self.visited_maps = set()
+        self.visited_maps = Counter()
+        self.current_map = None
         return self.get_state()
 
     def save(self, save_name):

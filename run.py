@@ -45,7 +45,7 @@ def run(steps, watch, start_save, seed):
             "final_map": state["map"]["map_name"],
             "final_position": state["player"]["position"],
             "badges": state["player"]["badge_count"],
-            "maps_visited": sorted(game.visited_maps),
+            "maps_visited": dict(game.visited_maps),
         })
         print(f"\nDone: {step} steps, total cost ${total_cost:.5f}, log in {log.folder}")
 

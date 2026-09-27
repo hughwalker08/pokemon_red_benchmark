@@ -2,14 +2,16 @@ from pokemon_agent.collision import PLAYER_COL, PLAYER_ROW
 
 from pathfinder import find_path
 from screen_text import read_screen_text
-from surroundings import MAP_HEIGHT, MAP_WIDTH, direction_to, read_edges, read_people, read_warps
+from surroundings import MAP_HEIGHT, MAP_WIDTH, direction_to, read_edges, read_people, read_signs, read_warps
 
 EDGE_TARGET = {"north": (-20, 0), "south": (20, 0), "west": (0, -20), "east": (0, 20)}
 EDGE_DIRECTION = {"north": "up", "south": "down", "west": "left", "east": "right"}
 
 
 def exit_name(game, destination):
-    return f"exit to {destination}" if destination in game.visited_maps else "unexplored exit"
+    if destination in game.visited_maps:
+        return f"exit to {destination} (been there {game.visited_maps[destination]} times)"
+    return "unexplored exit"
 
 
 def same_door(a, b):
@@ -41,8 +43,18 @@ def build_macros(game, state):
             "description": f"Walk up to the person/object ({direction_to(player, person)}) and face them",
         }
 
+    for number, sign in enumerate(read_signs(game), start=1):
+        macros[f"go_to_sign_{number}"] = {
+            "kind": "sign",
+            "target": sign,
+            "description": f"Walk up to the sign ({direction_to(player, sign)}) and face it",
+        }
+
     for edge in read_edges(game, player):
-        place = edge["to"] if edge["to"] in game.visited_maps else "somewhere unexplored"
+        if edge["to"] in game.visited_maps:
+            place = f"{edge['to']} (been there {game.visited_maps[edge['to']]} times)"
+        else:
+            place = "somewhere unexplored"
         macros[f"go_{edge['side']}"] = {
             "kind": "edge",
             "side": edge["side"],
@@ -100,17 +112,20 @@ def run_macro(game, macro, max_presses=40):
                 presses += 1
                 break
             goal = to_grid(player, target)
-        elif macro["kind"] == "person":
-            person = next((p for p in people if p["sprite"] == macro["sprite"]), None)
-            if person is None:
+        elif macro["kind"] in ("person", "sign"):
+            if macro["kind"] == "person":
+                thing = next((p for p in people if p["sprite"] == macro["sprite"]), None)
+            else:
+                thing = macro["target"]
+            if thing is None:
                 break
-            if abs(person["x"] - player["x"]) + abs(person["y"] - player["y"]) == 1:
-                facing = direction_towards(player, person)
+            if abs(thing["x"] - player["x"]) + abs(thing["y"] - player["y"]) == 1:
+                facing = direction_towards(player, thing)
                 if state["player"]["facing"] != facing:
                     state = game.do(facing)
                     presses += 1
                 break
-            goal = to_grid(player, person)
+            goal = to_grid(player, thing)
         else:
             row_change, col_change = EDGE_TARGET[macro["side"]]
             goal = (PLAYER_ROW + row_change, PLAYER_COL + col_change)
