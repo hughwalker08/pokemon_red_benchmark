@@ -6,6 +6,7 @@ from pokemon_agent.memory.red import PokemonRedReader
 from pokemon_agent.state.builder import build_game_state
 from pyboy import PyBoy
 
+from map_names import map_name as lookup_map_name
 from screen_text import read_screen_text
 
 ROM_PATH = "roms/pokemon_red.gb"
@@ -31,6 +32,7 @@ class Game:
 
     def get_state(self):
         state = build_game_state(self.reader)
+        state["map"]["map_name"] = lookup_map_name(state["map"]["map_id"])
         map_name = state["map"]["map_name"]
         if map_name != self.current_map:
             self.visited_maps[map_name] += 1

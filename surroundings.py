@@ -1,4 +1,4 @@
-from pokemon_agent.memory.red import MAP_NAMES
+from map_names import map_name
 
 # Memory addresses (from the pokered disassembly).
 NUM_WARPS = 0xD3AE       # how many warps (doors/stairs) this map has
@@ -29,7 +29,7 @@ def read_warps(game):
         dest_map = game.read_memory(start + 3)
         if dest_map == 255:
             dest_map = game.read_memory(LAST_MAP)
-        warps.append({"x": x, "y": y, "to": MAP_NAMES.get(dest_map, f"map {dest_map}")})
+        warps.append({"x": x, "y": y, "to": map_name(dest_map)})
     return warps
 
 
@@ -81,7 +81,7 @@ def read_edges(game, player):
     for side in ["north", "south", "west", "east"]:
         if connections & EDGE_BIT[side]:
             dest_map = game.read_memory(EDGE_MAP[side])
-            edges.append({"side": side, "to": MAP_NAMES.get(dest_map, f"map {dest_map}"), "steps": steps[side]})
+            edges.append({"side": side, "to": map_name(dest_map), "steps": steps[side]})
     return edges
 
 
