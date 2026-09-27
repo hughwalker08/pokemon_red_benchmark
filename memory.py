@@ -1,4 +1,4 @@
-from collections import deque
+from collections import Counter, deque
 
 
 def describe_effect(before, after, text_before, text_after):
@@ -21,8 +21,13 @@ class History:
     def __init__(self, length=10):
         self.steps = deque(maxlen=length)
         self.unchanged_count = 0
+        self.times_seen = Counter()
 
     def record(self, button, effect):
+        if effect.startswith("text:"):
+            self.times_seen[effect] += 1
+            if self.times_seen[effect] > 1:
+                effect += f" (seen {self.times_seen[effect]} times)"
         self.steps.append(f"{button} -> {effect}")
         if effect == "nothing changed":
             self.unchanged_count += 1

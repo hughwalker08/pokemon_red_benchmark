@@ -29,12 +29,12 @@ def describe_front(game, state):
     facing = state["player"]["facing"]
     target = square_position(state, facing)
     if target in read_people(game):
-        return "In front of you: a person or object (press a to talk/interact)"
+        return "In front of you: a person or object"
     if any(warp["x"] == target["x"] and warp["y"] == target["y"] for warp in read_warps(game)):
-        return "In front of you: an exit (walk onto it to use it)"
+        return "In front of you: an exit"
     if not square_walkable(state, facing):
         return "In front of you: something solid (wall, furniture, sign or counter)"
-    return "In front of you: open floor (nothing to interact with)"
+    return "In front of you: open floor"
 
 
 def allowed_buttons(game, state, screen_text):
