@@ -1,0 +1,27 @@
+## What the results say (temperature 1)
+
+This batch repeats the first comparison with one change: Jev's options are now picked at exactly its own probabilities (temperature 1) instead of being sharpened towards its favourite (temperature 0.5). Same seeds (2–5), same 2,000-step cap, same harness.
+
+<b>The planner still wins clearly.</b> Arm B averaged 12.75 of 13 milestones against 8.75 for Arm A. All four Arm B runs reached Pewter City and the gym, and three of the four beat Brock for the Boulder Badge (at steps 1,047, 1,507 and 1,791). No Arm A run reached Pewter City; its furthest was Viridian Forest in one run.
+
+<b>The early gap mostly disappears; the later gap does not.</b> Choosing a starter took Arm A a median of 49.5 steps against 35.5 for Arm B (1.4× slower), compared with 16× slower at temperature 0.5. At temperature 1 Jev's small chance of walking to a Poké Ball is no longer squashed, so it escapes the "keep talking to Oak" loop quickly on its own. But further into the story the planner matters again: Oak's Parcel 3.1× faster in Arm B, the Pokédex 2.9× faster, Route 2 2.1× faster, and only Arm B reliably reaches the forest, Pewter City and the gym.
+
+<b>Temperature 1 is better for both arms.</b> Arm A's average rose from 7.00 to 8.75 and every Arm A run got a starter (at temperature 0.5 one never did). Arm B's average rose from 12.25 to 12.75 and its Brock wins went from 1 of 4 to 3 of 4. Keeping Jev's own probabilities lets it break out of loops, which helps a planner-guided Jev as well as a lone one.
+
+## Behaviour worth noting
+
+<b>Starters vary more.</b> At temperature 1 Arm A picked Bulbasaur, Charmander, Squirtle and Charmander across its four runs; Arm B picked Squirtle once (seed 4), which is strong against Brock's rock types and that run won the badge fastest (step 1,047).
+
+<b>Arm B won every rival battle</b> at temperature 1 (4 of 4); Arm A won 2 of 4.
+
+<b>Fewer blackouts for Arm B</b> (6.2 per run against 9.2 at temperature 0.5), even though it spent longer in the hardest areas. Arm A still almost never uses Ember, but did in one run (9 times).
+
+<b>Cost is unchanged</b>: about $0.08 per Arm A run and $0.61 per Arm B run.
+
+## What this means for the benchmark
+
+The headline conclusion — a slow LLM planner makes a fast decision model get much further through the main story — holds at both temperatures, so it is not an artefact of how Jev's answers are sampled. But the size of the early-game gap depends heavily on temperature, so any single "N× faster" figure should be quoted together with the temperature used. Temperature 1 has no tuned parameter and gave better results for both arms, so it is the better default for future runs.
+
+## Caveats
+
+Four runs per arm per temperature is still a small sample. Runs end after 1,000 steps without a new milestone, which may cut Arm A off early.

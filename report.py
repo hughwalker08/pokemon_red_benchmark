@@ -126,15 +126,16 @@ def score_chart(runs, path):
 
 
 def median_or_dash(values):
-    return f"{statistics.median(values):.0f}" if values else "-"
+    return f"{statistics.median(values):g}" if values else "-"
 
 
-def build_pdf(tag, clean_seeds, out_path):
+def build_pdf(tag, clean_seeds, out_path, compare_tag=None):
     runs = load_runs(tag, min_steps=100)
     clean = [r for r in runs if r["seed"] in clean_seeds]
     caveat = [r for r in runs if r["seed"] not in clean_seeds]
     out_path.parent.mkdir(exist_ok=True)
-    chart1, chart2 = out_path.with_name("milestones_chart.png"), out_path.with_name("scores_chart.png")
+    chart1 = out_path.with_name(f"{out_path.stem}_milestones.png")
+    chart2 = out_path.with_name(f"{out_path.stem}_scores.png")
     milestone_chart(clean, chart1)
     score_chart(clean, chart2)
 
@@ -157,7 +158,8 @@ def build_pdf(tag, clean_seeds, out_path):
     a, b = arm_stats("A"), arm_stats("B")
     story = [
         Paragraph("Pokémon Red benchmark: Jev alone vs Jev + GPT-6 Sol", h1),
-        Paragraph(f"First comparison · {date.today():%d %B %Y} · runs tagged <b>{tag}</b>", small),
+        Paragraph(f"{date.today():%d %B %Y} · runs tagged <b>{tag}</b> · sampling temperature "
+                  f"<b>{clean[0]['temperature']:g}</b>", small),
         Spacer(1, 8),
         Paragraph(
             "Both arms play from the same new-game save with the same harness. Jev (TypeSafe, via OpenRouter) makes "
@@ -223,10 +225,48 @@ def build_pdf(tag, clean_seeds, out_path):
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f3")]),
         ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
-    story += [Paragraph("Every run", h2), run_table,
-              Paragraph("* Seed 1 ran before a map-name fix: its “Viridian Forest” milestone was really the forest "
-                        "gate, and Arm B’s “Pewter Gym” was really the museum’s second floor. It is excluded from the "
-                        "charts and averages above.", small)]
+    story += [Paragraph("Every run", h2), run_table]
+    if caveat:
+        story.append(Paragraph("* Seed 1 ran before a map-name fix: its “Viridian Forest” milestone was really the "
+                               "forest gate, and Arm B’s “Pewter Gym” was really the museum’s second floor. It is "
+                               "excluded from the charts and averages above.", small))
+    if compare_tag:
+        other = [r for r in load_runs(compare_tag, min_steps=100) if r["seed"] in clean_seeds]
+        batches = sorted([(other[0]["temperature"], other), (clean[0]["temperature"], clean)], key=lambda b: b[0])
+        (t_low, low), (t_high, high) = batches
+        story += [PageBreak(), Paragraph("Does the temperature change the result?", h2),
+                  Paragraph(f"The same seeds run at two sampling temperatures, T = {t_low:g} and T = {t_high:g}. "
+                            "Median steps are over the runs that reached each milestone (brackets: how many did).",
+                            small), Spacer(1, 4)]
+        compare_rows = [["", f"Arm A, T={t_low:g}", f"Arm A, T={t_high:g}", f"Arm B, T={t_low:g}", f"Arm B, T={t_high:g}"]]
+
+        def cell(batch, arm, name=None, key=None):
+            rs = [r for r in batch if r["arm"] == arm]
+            if key == "avg":
+                return f"{sum(r['milestone_score'] for r in rs) / len(rs):.2f}"
+            if key == "cost":
+                return f"${sum(r['total_cost'] for r in rs) / len(rs):.2f}"
+            if key == "badges":
+                return f"{sum(1 for r in rs if 'boulder_badge' in r['milestones'])} of {len(rs)}"
+            steps = [r["milestones"][name] for r in rs if name in r["milestones"]]
+            return f"{median_or_dash(steps)} ({len(steps)}/{len(rs)})"
+
+        order = [(arm, bt) for arm in "AB" for bt in (low, high)]
+        compare_rows.append(["Average milestones"] + [cell(bt, arm, key="avg") for arm, bt in order])
+        compare_rows.append(["Beat Brock"] + [cell(bt, arm, key="badges") for arm, bt in order])
+        for name in NAMES:
+            compare_rows.append([LABELS[name]] + [cell(bt, arm, name) for arm, bt in order])
+        compare_rows.append(["Average cost per run"] + [cell(bt, arm, key="cost") for arm, bt in order])
+        compare = Table(compare_rows, colWidths=[44 * mm, 30 * mm, 30 * mm, 30 * mm, 30 * mm])
+        compare.setStyle(TableStyle([
+            ("FONT", (0, 0), (-1, -1), "Helvetica", 8.5), ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8.5),
+            ("FONT", (0, 1), (-1, 2), "Helvetica-Bold", 8.5),
+            ("TEXTCOLOR", (1, 0), (2, 0), colors.HexColor(COLOR["A"])), ("TEXTCOLOR", (3, 0), (4, 0), colors.HexColor(COLOR["B"])),
+            ("ALIGN", (1, 0), (-1, -1), "CENTER"), ("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.HexColor(GRID)),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f3")]),
+            ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(compare)
     return story, (a, b)
 
 
@@ -235,10 +275,11 @@ def main():
     parser.add_argument("--tag", default="v2")
     parser.add_argument("--clean-seeds", default="2,3,4,5")
     parser.add_argument("--out", default="reports/benchmark_report.pdf")
+    parser.add_argument("--compare-tag", default="", help="another batch to compare against, e.g. v2")
     parser.add_argument("--notes", default="", help="optional file of extra paragraphs (one per blank-line block)")
     args = parser.parse_args()
     out = Path(args.out)
-    story, _ = build_pdf(args.tag, [int(s) for s in args.clean_seeds.split(",")], out)
+    story, _ = build_pdf(args.tag, [int(s) for s in args.clean_seeds.split(",")], out, args.compare_tag or None)
     if args.notes:
         styles = getSampleStyleSheet()
         body = ParagraphStyle("body", parent=styles["Normal"], fontSize=9.5, leading=13.5, spaceAfter=7)

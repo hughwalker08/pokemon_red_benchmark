@@ -2,7 +2,7 @@
 
 <b>The planner roughly doubles how far Jev gets, and gets there several times faster.</b> Across seeds 2–5, Arm B averaged 12.25 of 13 milestones against 7.0 for Arm A. Every Arm B run reached Viridian Forest, Pewter City and the Pewter Gym; no Arm A run got past Route 2. One Arm B run (seed 5) beat Brock and earned the Boulder Badge at step 1,527.
 
-<b>The biggest gap is the first bit of "quest logic": choosing a starter.</b> Once Oak asks which Pokémon you want, Arm B picks one at a median of step 20; Arm A takes a median of 320 steps (16× slower), spending hundreds of steps pressing A at Oak, and one run (seed 3) never got there at all — it wandered into Oak's Lab before triggering Oak and then talked to Blue about 800 times. Later milestones are still reached 4–7× faster by Arm B.
+<b>The biggest gap is the first bit of "quest logic": choosing a starter.</b> Once Oak asks which Pokémon you want, Arm B picks one at a median of step 20; Arm A takes a median of 320 steps (16× slower), spending hundreds of steps pressing A at Oak, and one run (seed 3) never got there at all — it wandered into Oak's Lab before triggering Oak and then talked to Blue about 800 times. Later milestones are still reached 4–7× faster by Arm B. (Update: most of this starter gap turned out to be caused by the sampling temperature; see “Update: the same test at temperature 1” below.)
 
 <b>Arm A is not stuck forever — it is slow.</b> Three of four Arm A runs eventually chose a starter by chance (sampling occasionally sends Jev to a Poké Ball) and then completed Oak's Parcel errand and got the Pokédex on their own. Arm A's limit in 2,000 steps was Route 2.
 
@@ -16,10 +16,20 @@
 
 <b>Cost.</b> Arm A cost about $0.09 per run; Arm B about $0.62, of which about $0.53 is Sol. Per milestone reached, that is about $0.013 for Arm A and $0.050 for Arm B.
 
+## Update: the same test at temperature 1
+
+After this report was first written, both arms were re-run on the same seeds at temperature 1, where options are picked at exactly Jev's own probabilities instead of being sharpened towards its favourite. The full comparison table is on the page just before these findings.
+
+<b>The planner's advantage holds.</b> At temperature 1, Arm B averaged 12.75 milestones against 8.75 for Arm A, and beat Brock in 3 of 4 runs (up from 1 of 4). No Arm A run reached Pewter City at either temperature.
+
+<b>But the starter gap was mostly caused by the temperature.</b> At temperature 1 Arm A chose a starter at a median of step 49.5 against 35.5 for Arm B — only 1.4× slower, not 16×. Sharpening had squashed Jev's small chance of walking to a Poké Ball, trapping Arm A in the "talk to Oak" loop. Later milestones still favour Arm B by 2–3× (Oak's Parcel 3.1×, Pokédex 2.9×, Route 2 2.1×).
+
+<b>Temperature 1 was better for both arms</b> (Arm A 7.00 → 8.75, Arm B 12.25 → 12.75), so it is the better default for future runs, and any "N× faster" figure should be quoted with its temperature.
+
 ## Caveats
 
-Four clean runs per arm is a small sample, so treat the averages as indicative rather than precise. Runs stop after 1,000 steps without a new milestone, so a slow arm is cut off earlier than it might otherwise be. Button choices are sampled from Jev's probabilities at temperature 0.5, which is why identical settings give different runs; a different temperature could change Arm A's numbers in particular. Seed 1 is excluded because it ran before a map-name fix.
+Four clean runs per arm is a small sample, so treat the averages as indicative rather than precise. Runs stop after 1,000 steps without a new milestone, so a slow arm is cut off earlier than it might otherwise be. Button choices are sampled from Jev's probabilities, which is why identical settings give different runs; as the temperature-1 update shows, the temperature changes Arm A's early-game numbers substantially. Seed 1 is excluded because it ran before a map-name fix.
 
 ## Suggested next steps
 
-Re-run with more seeds (e.g. 10 per arm) on harness v3 to tighten the averages. Give Arm A a much larger step budget (it is cheap at about $0.05 per 1,000 steps) to test whether it eventually reaches Pewter. Try re-planning when Jev's confidence stays low, which the spec suggests, to see whether Arm B can get through the gym more reliably.
+Re-run with more seeds (e.g. 10 per arm) at temperature 1 on harness v3 to tighten the averages. Give Arm A a much larger step budget (it is cheap at about $0.05 per 1,000 steps) to test whether it eventually reaches Pewter. Try re-planning when Jev's confidence stays low, which the spec suggests, to see whether Arm B can get through the gym more reliably.
