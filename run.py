@@ -8,6 +8,7 @@ from game import Game
 from jev import BUTTON_DESCRIPTIONS, ask_jev
 from macros import build_macros, run_macro
 from memory import History, describe_effect
+from milestones import MILESTONES, MilestoneTracker
 from run_log import RunLog
 from screen_text import read_screen_text
 from sol import ask_sol
@@ -38,6 +39,7 @@ def run(steps, watch, start_save, seed, arm, plan_every):
     if arm == "B":
         settings.update({"sol_model": SOL_MODEL, "plan_every": plan_every})
     log = RunLog(f"arm{arm}", settings)
+    milestones = MilestoneTracker()
     costs = {"jev": 0.0, "sol": 0.0}
     step = 0
 
@@ -45,13 +47,15 @@ def run(steps, watch, start_save, seed, arm, plan_every):
         for step in range(1, steps + 1):
             plan_now = arm == "B" and (step - 1) % plan_every == 0
             state, screen_text, goal, step_costs = play_step(
-                game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now
+                game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now, milestones
             )
             costs["jev"] += step_costs["jev"]
             costs["sol"] += step_costs["sol"]
     finally:
         log.finish({
             "steps_completed": step,
+            "milestone_score": milestones.score(),
+            "milestones": milestones.reached,
             "jev_cost": costs["jev"],
             "sol_cost": costs["sol"],
             "total_cost": costs["jev"] + costs["sol"],
@@ -62,9 +66,10 @@ def run(steps, watch, start_save, seed, arm, plan_every):
         })
         total = costs["jev"] + costs["sol"]
         print(f"\nDone: {step} steps, cost ${total:.4f} (Jev ${costs['jev']:.4f}, Sol ${costs['sol']:.4f}), log in {log.folder}")
+        print(f"Milestones ({milestones.score()}/{len(MILESTONES)}): {milestones.reached}")
 
 
-def play_step(game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now):
+def play_step(game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now, milestones):
     surroundings = describe_surroundings(game, state)
     if "collision" in state:
         surroundings.insert(0, describe_front(game, state))
@@ -104,6 +109,9 @@ def play_step(game, step, state, screen_text, history, sol_history, log, rng, go
         new_state, new_screen_text = game.get_state(), read_screen_text(game)
     history.record(label, effect)
     sol_history.record(label, effect)
+    new_milestones = milestones.update(step, new_state, effect, game)
+    for name in new_milestones:
+        print(f"   *** MILESTONE: {name} (step {step})")
 
     log.log_step(step, {
         "map": state["map"]["map_name"],
@@ -120,6 +128,7 @@ def play_step(game, step, state, screen_text, history, sol_history, log, rng, go
         "cost": result["cost"],
         "sol_cost": sol_cost,
         "effect": effect,
+        "new_milestones": new_milestones,
     }, screen_before)
 
     position = new_state["player"]["position"]
