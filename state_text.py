@@ -9,7 +9,8 @@ def state_to_text(state, surroundings=(), screen_text=()):
     if state["party"]:
         lines.append("Party:")
         for mon in state["party"]:
-            lines.append(f"  {mon['nickname']} ({mon['species']}) Lv{mon['level']} HP {mon['hp']}/{mon['max_hp']} {mon['status']}")
+            moves = ", ".join(move["name"] if isinstance(move, dict) else str(move) for move in mon.get("moves", []))
+            lines.append(f"  {mon['nickname']} ({mon['species']}) Lv{mon['level']} HP {mon['hp']}/{mon['max_hp']} {mon['status']}, moves: {moves}")
     else:
         lines.append("Party: none yet")
 

@@ -13,6 +13,8 @@ BUTTONS = ["up", "down", "left", "right", "a", "b", "start", "select"]
 MAP_ID = 0xD35E  # which map you're on; when it changes, the screen fades and input is ignored
 SCREEN = 0xC3A0  # the 20x18 tiles currently on screen
 SCREEN_SIZE = 20 * 18
+ENEMY_HP = 0xCFE6    # 2 bytes, the active enemy Pokémon's current HP
+ENEMY_MAX_HP = 0xCFF4
 JOY_IGNORE = 0xCD6B  # 0xFF while a scripted scene is running and every button is ignored
 
 
@@ -32,6 +34,11 @@ class Game:
         if map_name != self.current_map:
             self.visited_maps[map_name] += 1
             self.current_map = map_name
+        enemy = state["battle"].get("enemy")
+        if state["battle"]["in_battle"] and enemy:
+            # The harness reads a stale copy; the active enemy's HP lives here (pokered wEnemyMonHP/MaxHP).
+            enemy["hp"] = self.read_memory(ENEMY_HP) << 8 | self.read_memory(ENEMY_HP + 1)
+            enemy["max_hp"] = self.read_memory(ENEMY_MAX_HP) << 8 | self.read_memory(ENEMY_MAX_HP + 1)
         if not state["battle"]["in_battle"]:
             collision = build_collision_grid(self.emulator)
             collision["ascii"] = render_ascii_map(collision, legend=True)
