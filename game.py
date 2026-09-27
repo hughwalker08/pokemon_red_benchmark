@@ -13,7 +13,8 @@ BUTTONS = ["up", "down", "left", "right", "a", "b", "start", "select"]
 MAP_ID = 0xD35E  # which map you're on; when it changes, the screen fades and input is ignored
 SCREEN = 0xC3A0  # the 20x18 tiles currently on screen
 SCREEN_SIZE = 20 * 18
-ENEMY_HP = 0xCFE6    # 2 bytes, the active enemy Pokémon's current HP
+BATTLE_TYPE = 0xD057  # 0 when not in a battle
+ENEMY_HP = 0xCFE6   # 2 bytes, the active enemy Pokémon's current HP
 ENEMY_MAX_HP = 0xCFF4
 JOY_IGNORE = 0xCD6B  # 0xFF while a scripted scene is running and every button is ignored
 
@@ -62,9 +63,11 @@ class Game:
         for _ in range(max_frames // 6):
             self.wait_for_screen_to_settle()
             ignore = self.read_memory(JOY_IGNORE)
+            no_text = not read_screen_text(self)
             all_ignored = ignore == 0xFF
-            between_lines = ignore != 0 and not read_screen_text(self)
-            if not (all_ignored or between_lines):
+            between_lines = ignore != 0 and no_text
+            battle_animation = self.read_memory(BATTLE_TYPE) != 0 and no_text
+            if not (all_ignored or between_lines or battle_animation):
                 break
             self.emulator.tick(6)
 
