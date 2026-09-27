@@ -6,3 +6,7 @@ requests==2.32.3
 
 # Loads the API key and model names from .env into the program.
 python-dotenv==1.0.1
+
+# Results report (report.py): charts and PDF.
+matplotlib==3.9.2
+reportlab==4.2.5
