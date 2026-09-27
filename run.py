@@ -2,7 +2,7 @@ import argparse
 import random
 
 from actions import allowed_buttons, describe_front
-from config import JEV_MODEL
+from config import JEV_MODEL, SOL_MODEL
 from dialogue import advance_dialogue, is_plain_dialogue
 from game import Game
 from jev import BUTTON_DESCRIPTIONS, ask_jev
@@ -10,6 +10,7 @@ from macros import build_macros, run_macro
 from memory import History, describe_effect
 from run_log import RunLog
 from screen_text import read_screen_text
+from sol import ask_sol
 from state_text import state_to_text
 from surroundings import describe_surroundings
 
@@ -25,38 +26,51 @@ def pick_button(probabilities, rng, temperature):
     return rng.choices(buttons, weights=weights)[0]
 
 
-def run(steps, watch, start_save, seed):
+def run(steps, watch, start_save, seed, arm, plan_every):
     rng = random.Random(seed)
     game = Game(watch=watch)
     state = game.load(start_save)
     screen_text = read_screen_text(game)
-    history = History(length=10)
-    log = RunLog("armA", {"arm": "A", "start_save": start_save, "goal": STANDING_GOAL, "jev_model": JEV_MODEL, "seed": seed, "temperature": TEMPERATURE})
-    total_cost = 0.0
+    history = History(length=10)       # what Jev sees
+    sol_history = History(length=30)   # Sol gets a longer view
+    goal = STANDING_GOAL
+    settings = {"arm": arm, "start_save": start_save, "jev_model": JEV_MODEL, "seed": seed, "temperature": TEMPERATURE}
+    if arm == "B":
+        settings.update({"sol_model": SOL_MODEL, "plan_every": plan_every})
+    log = RunLog(f"arm{arm}", settings)
+    costs = {"jev": 0.0, "sol": 0.0}
     step = 0
 
     try:
         for step in range(1, steps + 1):
-            state, screen_text, cost = play_step(game, step, state, screen_text, history, log, rng)
-            total_cost += cost
+            plan_now = arm == "B" and (step - 1) % plan_every == 0
+            state, screen_text, goal, step_costs = play_step(
+                game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now
+            )
+            costs["jev"] += step_costs["jev"]
+            costs["sol"] += step_costs["sol"]
     finally:
         log.finish({
             "steps_completed": step,
-            "total_cost": total_cost,
+            "jev_cost": costs["jev"],
+            "sol_cost": costs["sol"],
+            "total_cost": costs["jev"] + costs["sol"],
             "final_map": state["map"]["map_name"],
             "final_position": state["player"]["position"],
             "badges": state["player"]["badge_count"],
             "maps_visited": dict(game.visited_maps),
         })
-        print(f"\nDone: {step} steps, total cost ${total_cost:.5f}, log in {log.folder}")
+        total = costs["jev"] + costs["sol"]
+        print(f"\nDone: {step} steps, cost ${total:.4f} (Jev ${costs['jev']:.4f}, Sol ${costs['sol']:.4f}), log in {log.folder}")
 
 
-def play_step(game, step, state, screen_text, history, log, rng):
+def play_step(game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now):
     surroundings = describe_surroundings(game, state)
     if "collision" in state:
         surroundings.insert(0, describe_front(game, state))
-    text = state_to_text(state, surroundings, screen_text)
-    text += "\n" + history.to_text()
+    state_text = state_to_text(state, surroundings, screen_text)
+    jev_text = state_text + "\n" + history.to_text()
+
     buttons = allowed_buttons(game, state, screen_text)
     options = {button: BUTTON_DESCRIPTIONS[button] for button in buttons}
     macros = {}
@@ -64,7 +78,13 @@ def play_step(game, step, state, screen_text, history, log, rng):
         macros = build_macros(game, state)
         options.update({name: macro["description"] for name, macro in macros.items()})
 
-    result = ask_jev(text, STANDING_GOAL, options)
+    sol_cost = 0.0
+    if plan_now:
+        plan = ask_sol(state_text, sol_history.to_text(), options, goal)
+        goal, sol_cost = plan["goal"], plan["cost"]
+        print(f"   SOL goal: {goal}")
+
+    result = ask_jev(jev_text, goal, options)
     button = pick_button(result["probabilities"], rng, TEMPERATURE)
     screen_before = game.emulator.get_screen().copy()
 
@@ -83,12 +103,14 @@ def play_step(game, step, state, screen_text, history, log, rng):
         effect = f'text: "{" ".join(transcript)[:250]}"'
         new_state, new_screen_text = game.get_state(), read_screen_text(game)
     history.record(label, effect)
+    sol_history.record(label, effect)
 
     log.log_step(step, {
         "map": state["map"]["map_name"],
         "position": state["player"]["position"],
-        "state_text": text,
-        "goal": STANDING_GOAL,
+        "state_text": jev_text,
+        "goal": goal,
+        "planned_this_step": plan_now,
         "options_offered": options,
         "jev_top_choice": result["button"],
         "button": button,
@@ -96,6 +118,7 @@ def play_step(game, step, state, screen_text, history, log, rng):
         "confidence": result["confidence"],
         "probabilities": result["probabilities"],
         "cost": result["cost"],
+        "sol_cost": sol_cost,
         "effect": effect,
     }, screen_before)
 
@@ -103,7 +126,7 @@ def play_step(game, step, state, screen_text, history, log, rng):
     print(f"step {step:4}  {new_state['map']['map_name']} ({position['x']},{position['y']})")
     print(f"           did {label[:45]:45} (Jev's top: {result['button']}, conf {result['confidence']:.2f})   -> {effect}")
 
-    return new_state, new_screen_text, result["cost"]
+    return new_state, new_screen_text, goal, {"jev": result["cost"], "sol": sol_cost}
 
 
 if __name__ == "__main__":
@@ -112,5 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("--watch", action="store_true")
     parser.add_argument("--start", default="new_game_bedroom")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--arm", choices=["A", "B"], default="A")
+    parser.add_argument("--plan-every", type=int, default=15)
     args = parser.parse_args()
-    run(args.steps, args.watch, args.start, args.seed)
+    run(args.steps, args.watch, args.start, args.seed, args.arm, args.plan_every)

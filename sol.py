@@ -9,9 +9,12 @@ every step it reads the game state and picks ONE option from a list. You cannot 
 
 Your job: read the state and recent history, then write the agent's next goal.
 - Focus only on progressing the main story (the next badge and the required story events).
-- The goal must be ONE short sentence the agent can act on in the next ~20 steps.
-- Phrase it using the same words as the agent's options, e.g. "Walk to the unexplored exit (3 left, 4 down)",
-  "Walk up to the Poke Ball (1 right) and face it, then press a", "Walk off the north edge of the map".
+- The goal must be ONE short sentence (at most two steps, e.g. "leave the house, then ...") that stays
+  useful for the next ~15 steps.
+- Name places by what they are, never by step counts, because the agent keeps moving and counts go out
+  of date: "the exit at the bottom of the room", "the north edge of Pallet Town", "the Poke Ball on the table".
+- Use the same kinds of words as the agent's options ("walk to the exit", "walk off the north edge",
+  "walk up to the Poke Ball and face it, then press a") so the agent recognises them.
 - If the recent history shows the agent repeating itself, give a different goal that breaks the loop.
 Reply with the goal sentence only."""
 
