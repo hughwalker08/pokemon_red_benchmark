@@ -1,0 +1,25 @@
+## What the results say
+
+<b>The planner roughly doubles how far Jev gets, and gets there several times faster.</b> Across seeds 2–5, Arm B averaged 12.25 of 13 milestones against 7.0 for Arm A. Every Arm B run reached Viridian Forest, Pewter City and the Pewter Gym; no Arm A run got past Route 2. One Arm B run (seed 5) beat Brock and earned the Boulder Badge at step 1,527.
+
+<b>The biggest gap is the first bit of "quest logic": choosing a starter.</b> Once Oak asks which Pokémon you want, Arm B picks one at a median of step 20; Arm A takes a median of 320 steps (16× slower), spending hundreds of steps pressing A at Oak, and one run (seed 3) never got there at all — it wandered into Oak's Lab before triggering Oak and then talked to Blue about 800 times. Later milestones are still reached 4–7× faster by Arm B.
+
+<b>Arm A is not stuck forever — it is slow.</b> Three of four Arm A runs eventually chose a starter by chance (sampling occasionally sends Jev to a Poké Ball) and then completed Oak's Parcel errand and got the Pokédex on their own. Arm A's limit in 2,000 steps was Route 2.
+
+## Behaviour worth noting
+
+<b>Jev fights on autopilot.</b> In both arms Jev almost always presses A in battle, which picks FIGHT and then the first move. Arm A never used Ember in any run, even after learning it; Arm B used it 9–37 times per run, because Sol's goals sometimes mention it. Charmander's Ember is what beat Brock's rock types in seed 5.
+
+<b>Blackouts are higher in Arm B, but that reflects how far it got.</b> Arm B blacked out 7–13 times per run versus 2–7 for Arm A, because it spent its time in Viridian Forest and the Pewter Gym, where trainers are much tougher than Route 1 wild Pokémon. Neither arm heals deliberately: Jev keeps fighting on low HP until it faints, and a blackout sends it back to a Pokémon Center.
+
+<b>Where Arm B stalls: the Pewter Gym.</b> All four clean Arm B runs entered the gym, but three of them were beaten repeatedly by the gym trainer or Brock and never got the badge within the step budget. Winning needs levelling up and using Ember, which the planner only partly achieves.
+
+<b>Cost.</b> Arm A cost about $0.09 per run; Arm B about $0.62, of which about $0.53 is Sol. Per milestone reached, that is about $0.013 for Arm A and $0.050 for Arm B.
+
+## Caveats
+
+Four clean runs per arm is a small sample, so treat the averages as indicative rather than precise. Runs stop after 1,000 steps without a new milestone, so a slow arm is cut off earlier than it might otherwise be. Button choices are sampled from Jev's probabilities at temperature 0.5, which is why identical settings give different runs; a different temperature could change Arm A's numbers in particular. Seed 1 is excluded because it ran before a map-name fix.
+
+## Suggested next steps
+
+Re-run with more seeds (e.g. 10 per arm) on harness v3 to tighten the averages. Give Arm A a much larger step budget (it is cheap at about $0.05 per 1,000 steps) to test whether it eventually reaches Pewter. Try re-planning when Jev's confidence stays low, which the spec suggests, to see whether Arm B can get through the gym more reliably.
