@@ -1,4 +1,4 @@
-def state_to_text(state):
+def state_to_text(state, surroundings=()):
     player = state["player"]
     lines = []
 
@@ -23,6 +23,7 @@ def state_to_text(state):
     elif state["dialog"]["active"]:
         lines.append("A text box or menu is open.")
     else:
+        lines.extend(surroundings)
         lines.append("Map around you:")
         lines.append(state["collision"]["ascii"])
 

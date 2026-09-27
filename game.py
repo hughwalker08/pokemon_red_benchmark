@@ -11,9 +11,11 @@ class Game:
     def __init__(self):
         self.emulator = create_emulator(ROM_PATH)
         self.reader = PokemonRedReader(self.emulator)
+        self.visited_maps = set()
 
     def get_state(self):
         state = build_game_state(self.reader)
+        self.visited_maps.add(state["map"]["map_name"])
         if not state["battle"]["in_battle"]:
             collision = build_collision_grid(self.emulator)
             collision["ascii"] = render_ascii_map(collision, legend=True)
@@ -30,6 +32,7 @@ class Game:
     def load(self, save_name):
         self.emulator.load_state(f"saves/{save_name}.state")
         self.emulator.tick(2)
+        self.visited_maps = set()
         return self.get_state()
 
     def save(self, save_name):
