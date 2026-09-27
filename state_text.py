@@ -1,4 +1,4 @@
-def state_to_text(state, surroundings=()):
+def state_to_text(state, surroundings=(), screen_text=()):
     player = state["player"]
     lines = []
 
@@ -20,9 +20,11 @@ def state_to_text(state, surroundings=()):
     if state["battle"]["in_battle"]:
         enemy = state["battle"].get("enemy") or {}
         lines.append(f"IN BATTLE vs {enemy.get('species')} Lv{enemy.get('level')} HP {enemy.get('hp')}/{enemy.get('max_hp')}")
-    elif state["dialog"]["active"]:
-        lines.append("A text box or menu is open.")
-    else:
+
+    if screen_text:
+        lines.append("On screen:")
+        lines.extend(screen_text)
+    elif not state["battle"]["in_battle"]:
         lines.extend(surroundings)
         lines.append("Map around you:")
         lines.append(state["collision"]["ascii"])
