@@ -6,11 +6,14 @@ from pokemon_agent.memory.red import PokemonRedReader
 from pokemon_agent.state.builder import build_game_state
 from pyboy import PyBoy
 
+from screen_text import read_screen_text
+
 ROM_PATH = "roms/pokemon_red.gb"
 BUTTONS = ["up", "down", "left", "right", "a", "b", "start", "select"]
 MAP_ID = 0xD35E  # which map you're on; when it changes, the screen fades and input is ignored
 SCREEN = 0xC3A0  # the 20x18 tiles currently on screen
 SCREEN_SIZE = 20 * 18
+JOY_IGNORE = 0xCD6B  # 0xFF while a scripted scene is running and every button is ignored
 
 
 class Game:
@@ -39,12 +42,24 @@ class Game:
         if button not in BUTTONS:
             raise ValueError(f"Unknown button: {button}")
         map_before = self.read_memory(MAP_ID)
-        self.emulator.press(button, 8)
-        self.emulator.tick(12)
+        hold = 3 if button in ("a", "b") else 8
+        self.emulator.press(button, hold)
+        self.emulator.tick(20 - hold)
         if self.read_memory(MAP_ID) != map_before:
             self.emulator.tick(120)
-        self.wait_for_screen_to_settle()
+        self.wait_while_input_ignored()
         return self.get_state()
+
+    def wait_while_input_ignored(self, max_frames=900):
+        """During scripted scenes (e.g. Oak walking over) the game ignores every button."""
+        for _ in range(max_frames // 6):
+            self.wait_for_screen_to_settle()
+            ignore = self.read_memory(JOY_IGNORE)
+            all_ignored = ignore == 0xFF
+            between_lines = ignore != 0 and not read_screen_text(self)
+            if not (all_ignored or between_lines):
+                break
+            self.emulator.tick(6)
 
     def wait_for_screen_to_settle(self, max_frames=180):
         previous = self.screen_tiles()

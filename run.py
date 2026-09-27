@@ -3,6 +3,7 @@ import random
 
 from actions import allowed_buttons, describe_front
 from config import JEV_MODEL
+from dialogue import advance_dialogue, is_plain_dialogue
 from game import Game
 from jev import BUTTON_DESCRIPTIONS, ask_jev
 from macros import build_macros, run_macro
@@ -75,6 +76,12 @@ def play_step(game, step, state, screen_text, history, log, rng):
         label = button
     new_screen_text = read_screen_text(game)
     effect = describe_effect(state, new_state, screen_text, new_screen_text)
+
+    if is_plain_dialogue(game, new_screen_text):
+        transcript, extra_presses = advance_dialogue(game)
+        presses += extra_presses
+        effect = f'text: "{" ".join(transcript)[:250]}"'
+        new_state, new_screen_text = game.get_state(), read_screen_text(game)
     history.record(label, effect)
 
     log.log_step(step, {
