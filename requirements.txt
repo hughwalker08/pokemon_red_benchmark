@@ -1,0 +1,8 @@
+# Game server: emulator + HTTP API. Pinned to the exact commit we tested.
+pokemon-agent[pyboy] @ git+https://github.com/NousResearch/pokemon-agent.git@f8a03e4a8bc58f1d9dda6d677a7436cc832a57a9
+
+# Talking to the game server and to OpenRouter over HTTP.
+requests==2.32.3
+
+# Loads the API key and model names from .env into the program.
+python-dotenv==1.0.1
