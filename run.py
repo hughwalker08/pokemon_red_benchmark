@@ -3,6 +3,7 @@ import argparse
 from actions import allowed_buttons
 from game import Game
 from jev import ask_jev
+from memory import History, describe_effect
 from screen_text import read_screen_text
 from state_text import state_to_text
 from surroundings import describe_surroundings
@@ -14,13 +15,19 @@ def run(steps, watch, start_save):
     game = Game(watch=watch)
     state = game.load(start_save)
     total_cost = 0.0
+    history = History(length=10)
+    screen_text = read_screen_text(game)
 
     for step in range(1, steps + 1):
-        screen_text = read_screen_text(game)
         text = state_to_text(state, describe_surroundings(game, state), screen_text)
+        text += "\n" + history.to_text()
         buttons = allowed_buttons(game, state, screen_text)
         result = ask_jev(text, STANDING_GOAL, buttons)
-        state = game.do(result["button"])
+
+        new_state = game.do(result["button"])
+        new_screen_text = read_screen_text(game)
+        history.record(result["button"], describe_effect(state, new_state, screen_text, new_screen_text))
+        state, screen_text = new_state, new_screen_text
         total_cost += result["cost"]
 
         ranked = sorted(result["probabilities"].items(), key=lambda item: item[1], reverse=True)
