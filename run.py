@@ -12,11 +12,12 @@ from state_text import state_to_text
 from surroundings import describe_surroundings
 
 STANDING_GOAL = "Make progress in the main story toward the next badge."
+TEMPERATURE = 0.5  # 1 = sample Jev's probabilities as-is; lower = follow Jev's top choice more often
 
 
-def pick_button(probabilities, rng):
+def pick_button(probabilities, rng, temperature):
     buttons = list(probabilities.keys())
-    weights = list(probabilities.values())
+    weights = [p ** (1 / temperature) for p in probabilities.values()]
     if sum(weights) == 0:
         return max(probabilities, key=probabilities.get)
     return rng.choices(buttons, weights=weights)[0]
@@ -28,7 +29,7 @@ def run(steps, watch, start_save, seed):
     state = game.load(start_save)
     screen_text = read_screen_text(game)
     history = History(length=10)
-    log = RunLog("armA", {"arm": "A", "start_save": start_save, "goal": STANDING_GOAL, "jev_model": JEV_MODEL, "seed": seed})
+    log = RunLog("armA", {"arm": "A", "start_save": start_save, "goal": STANDING_GOAL, "jev_model": JEV_MODEL, "seed": seed, "temperature": TEMPERATURE})
     total_cost = 0.0
     step = 0
 
@@ -56,7 +57,7 @@ def play_step(game, step, state, screen_text, history, log, rng):
     text += "\n" + history.to_text()
     buttons = allowed_buttons(game, state, screen_text)
     result = ask_jev(text, STANDING_GOAL, buttons)
-    button = pick_button(result["probabilities"], rng)
+    button = pick_button(result["probabilities"], rng, TEMPERATURE)
     screen_before = game.emulator.get_screen().copy()
 
     new_state = game.do(button)
