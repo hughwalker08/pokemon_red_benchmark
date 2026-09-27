@@ -27,7 +27,7 @@ def pick_button(probabilities, rng, temperature):
     return rng.choices(buttons, weights=weights)[0]
 
 
-def run(steps, watch, start_save, seed, arm, plan_every):
+def run(steps, watch, start_save, seed, arm, plan_every, stuck_limit, tag):
     rng = random.Random(seed)
     game = Game(watch=watch)
     state = game.load(start_save)
@@ -35,10 +35,11 @@ def run(steps, watch, start_save, seed, arm, plan_every):
     history = History(length=10)       # what Jev sees
     sol_history = History(length=30)   # Sol gets a longer view
     goal = STANDING_GOAL
-    settings = {"arm": arm, "start_save": start_save, "jev_model": JEV_MODEL, "seed": seed, "temperature": TEMPERATURE}
+    settings = {"arm": arm, "start_save": start_save, "jev_model": JEV_MODEL, "seed": seed,
+                "temperature": TEMPERATURE, "max_steps": steps, "stuck_limit": stuck_limit, "tag": tag}
     if arm == "B":
         settings.update({"sol_model": SOL_MODEL, "plan_every": plan_every})
-    log = RunLog(f"arm{arm}", settings)
+    log = RunLog(f"arm{arm}_seed{seed}" + (f"_{tag}" if tag else ""), settings)
     milestones = MilestoneTracker()
     costs = {"jev": 0.0, "sol": 0.0}
     step = 0
@@ -51,6 +52,10 @@ def run(steps, watch, start_save, seed, arm, plan_every):
             )
             costs["jev"] += step_costs["jev"]
             costs["sol"] += step_costs["sol"]
+            last_progress = max(milestones.reached.values(), default=0)
+            if step - last_progress >= stuck_limit:
+                print(f"\nNo new milestone for {stuck_limit} steps - ending the run early.")
+                break
     finally:
         log.finish({
             "steps_completed": step,
@@ -146,5 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--arm", choices=["A", "B"], default="A")
     parser.add_argument("--plan-every", type=int, default=15)
+    parser.add_argument("--stuck-limit", type=int, default=1000, help="end early after this many steps with no new milestone")
+    parser.add_argument("--tag", default="", help="label for this batch of runs, e.g. v2 (used by compare.py)")
     args = parser.parse_args()
-    run(args.steps, args.watch, args.start, args.seed, args.arm, args.plan_every)
+    run(args.steps, args.watch, args.start, args.seed, args.arm, args.plan_every, args.stuck_limit, args.tag)
