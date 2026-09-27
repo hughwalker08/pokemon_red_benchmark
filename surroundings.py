@@ -7,6 +7,13 @@ LAST_MAP = 0xD365        # the outdoor map you came from
 NUM_SPRITES = 0xD4E1     # how many characters/objects this map has
 SPRITE_DATA_1 = 0xC100   # 16 bytes per sprite; byte 0 = picture (0 means empty)
 SPRITE_DATA_2 = 0xC200   # 16 bytes per sprite; bytes 4 and 5 = y and x (plus 4)
+MISSABLE_LIST = 0xD5CE   # pairs of (sprite number, missable number), ends with 255
+MISSABLE_FLAGS = 0xD5A6  # one bit per missable number; 1 means hidden
+MAP_HEIGHT = 0xD368     # in blocks (1 block = 2x2 tiles)
+MAP_WIDTH = 0xD369
+CONNECTIONS = 0xD370     # one on/off bit per edge: north=8, south=4, west=2, east=1
+EDGE_MAP = {"north": 0xD371, "south": 0xD37C, "west": 0xD387, "east": 0xD392}
+EDGE_BIT = {"north": 8, "south": 4, "west": 2, "east": 1}
 
 
 def read_warps(game):
@@ -22,15 +29,46 @@ def read_warps(game):
     return warps
 
 
+def is_hidden(game, sprite):
+    address = MISSABLE_LIST
+    while game.read_memory(address) != 255:
+        if game.read_memory(address) == sprite:
+            missable = game.read_memory(address + 1)
+            flags = game.read_memory(MISSABLE_FLAGS + missable // 8)
+            return flags & (1 << (missable % 8)) != 0
+        address += 2
+    return False
+
+
 def read_people(game):
     people = []
     for i in range(1, game.read_memory(NUM_SPRITES) + 1):
         if game.read_memory(SPRITE_DATA_1 + 16 * i) == 0:
             continue
+        if is_hidden(game, i):
+            continue
         y = game.read_memory(SPRITE_DATA_2 + 16 * i + 4) - 4
         x = game.read_memory(SPRITE_DATA_2 + 16 * i + 5) - 4
         people.append({"x": x, "y": y})
     return people
+
+
+def read_edges(game, player):
+    height = game.read_memory(MAP_HEIGHT) * 2
+    width = game.read_memory(MAP_WIDTH) * 2
+    steps = {
+        "north": f"{player['y'] + 1} up",
+        "south": f"{height - player['y']} down",
+        "west": f"{player['x'] + 1} left",
+        "east": f"{width - player['x']} right",
+    }
+    edges = []
+    connections = game.read_memory(CONNECTIONS)
+    for side in ["north", "south", "west", "east"]:
+        if connections & EDGE_BIT[side]:
+            dest_map = game.read_memory(EDGE_MAP[side])
+            edges.append({"side": side, "to": MAP_NAMES.get(dest_map, f"map {dest_map}"), "steps": steps[side]})
+    return edges
 
 
 def direction_to(player, target):
@@ -56,6 +94,11 @@ def describe_surroundings(game, state):
             lines.append(f"Exit to {warp['to']}: {direction_to(player, warp)}")
         else:
             lines.append(f"Exit (unexplored): {direction_to(player, warp)}")
+    for edge in read_edges(game, player):
+        if edge["to"] in game.visited_maps:
+            lines.append(f"{edge['side'].capitalize()} edge leads to {edge['to']}: {edge['steps']}")
+        else:
+            lines.append(f"{edge['side'].capitalize()} edge leads somewhere unexplored: {edge['steps']}")
     for person in read_people(game):
         lines.append(f"Person/object: {direction_to(player, person)}")
     return lines
