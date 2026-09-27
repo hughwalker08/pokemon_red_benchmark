@@ -25,20 +25,29 @@ def is_blocked(game, state, direction):
     return square_position(state, direction) in read_people(game)
 
 
+def standing_on_exit(game, state):
+    player = state["player"]["position"]
+    return any(warp["x"] == player["x"] and warp["y"] == player["y"] for warp in read_warps(game))
+
+
 def describe_front(game, state):
     facing = state["player"]["facing"]
     target = square_position(state, facing)
     if target in read_people(game):
-        return "In front of you: a person or object"
-    if any(warp["x"] == target["x"] and warp["y"] == target["y"] for warp in read_warps(game)):
-        return "In front of you: an exit"
-    if not square_walkable(state, facing):
-        return "In front of you: something solid (wall, furniture, sign or counter)"
-    return "In front of you: open floor"
+        front = "In front of you: a person or object"
+    elif any(warp["x"] == target["x"] and warp["y"] == target["y"] for warp in read_warps(game)):
+        front = "In front of you: an exit"
+    elif not square_walkable(state, facing):
+        front = "In front of you: something solid (wall, furniture, sign or counter)"
+    else:
+        front = "In front of you: open floor"
+    if standing_on_exit(game, state):
+        front = "You are standing on an exit.\n" + front
+    return front
 
 
 def allowed_buttons(game, state, screen_text):
-    if screen_text or state["battle"]["in_battle"]:
+    if screen_text or state["battle"]["in_battle"] or standing_on_exit(game, state):
         return BUTTONS
 
     allowed = []
