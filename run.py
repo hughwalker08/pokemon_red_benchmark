@@ -1,6 +1,7 @@
 import argparse
 
-from game import BUTTONS, Game
+from actions import allowed_buttons
+from game import Game
 from jev import ask_jev
 from screen_text import read_screen_text
 from state_text import state_to_text
@@ -15,8 +16,10 @@ def run(steps, watch, start_save):
     total_cost = 0.0
 
     for step in range(1, steps + 1):
-        text = state_to_text(state, describe_surroundings(game, state), read_screen_text(game))
-        result = ask_jev(text, STANDING_GOAL, BUTTONS)
+        screen_text = read_screen_text(game)
+        text = state_to_text(state, describe_surroundings(game, state), screen_text)
+        buttons = allowed_buttons(game, state, screen_text)
+        result = ask_jev(text, STANDING_GOAL, buttons)
         state = game.do(result["button"])
         total_cost += result["cost"]
 

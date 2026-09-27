@@ -6,6 +6,7 @@ from pyboy import PyBoy
 
 ROM_PATH = "roms/pokemon_red.gb"
 BUTTONS = ["up", "down", "left", "right", "a", "b", "start", "select"]
+MAP_ID = 0xD35E  # which map you're on; when it changes, the screen fades and input is ignored
 
 
 class Game:
@@ -29,8 +30,11 @@ class Game:
     def do(self, button):
         if button not in BUTTONS:
             raise ValueError(f"Unknown button: {button}")
+        map_before = self.read_memory(MAP_ID)
         self.emulator.press(button, 8)
         self.emulator.tick(12)
+        if self.read_memory(MAP_ID) != map_before:
+            self.emulator.tick(120)
         return self.get_state()
 
     def load(self, save_name):
