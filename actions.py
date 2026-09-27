@@ -37,8 +37,9 @@ def standing_on_exit(game, state):
 def describe_front(game, state):
     facing = state["player"]["facing"]
     target = square_position(state, facing)
-    if person_at(game, target):
-        front = "In front of you: a person or object"
+    thing = next((p for p in read_people(game) if p["x"] == target["x"] and p["y"] == target["y"]), None)
+    if thing:
+        front = f"In front of you: a {thing['kind']}"
     elif any(warp["x"] == target["x"] and warp["y"] == target["y"] for warp in read_warps(game)):
         front = "In front of you: an exit"
     elif not square_walkable(state, facing):

@@ -7,7 +7,9 @@ LAST_MAP = 0xD365        # the outdoor map you came from
 NUM_SPRITES = 0xD4E1     # how many characters/objects this map has
 SPRITE_DATA_1 = 0xC100   # 16 bytes per sprite; byte 0 = picture (0 means empty)
 SPRITE_DATA_2 = 0xC200   # 16 bytes per sprite; bytes 4 and 5 = y and x (plus 4)
-MISSABLE_LIST = 0xD5CE   # pairs of (sprite number, missable number), ends with 255
+# What a sprite looks like, by its picture number (checked in Oak's Lab); anything else is a person.
+SPRITE_KINDS = {61: "Poké Ball", 65: "book"}
+MISSABLE_LIST = 0xD5CE  # pairs of (sprite number, missable number), ends with 255
 MISSABLE_FLAGS = 0xD5A6  # one bit per missable number; 1 means hidden
 NUM_SIGNS = 0xD4B0       # how many signs this map has
 SIGN_TABLE = 0xD4B1      # 2 bytes per sign: y, x
@@ -60,7 +62,8 @@ def read_people(game):
             continue
         y = game.read_memory(SPRITE_DATA_2 + 16 * i + 4) - 4
         x = game.read_memory(SPRITE_DATA_2 + 16 * i + 5) - 4
-        people.append({"x": x, "y": y, "sprite": i})
+        picture = game.read_memory(SPRITE_DATA_1 + 16 * i)
+        people.append({"x": x, "y": y, "sprite": i, "kind": SPRITE_KINDS.get(picture, "person")})
     return people
 
 
@@ -111,7 +114,8 @@ def describe_surroundings(game, state):
         else:
             lines.append(f"{edge['side'].capitalize()} edge leads somewhere unexplored: {edge['steps']}")
     for person in read_people(game):
-        lines.append(f"Person/object: {direction_to(player, person)}")
+        kind = person["kind"]
+        lines.append(f"{kind[0].upper() + kind[1:]}: {direction_to(player, person)}")
     for sign in read_signs(game):
         lines.append(f"Sign: {direction_to(player, sign)}")
     return lines

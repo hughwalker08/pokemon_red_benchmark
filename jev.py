@@ -1,3 +1,5 @@
+import time
+
 import requests
 
 from config import JEV_ENDPOINT, JEV_MODEL, OPENROUTER_API_KEY
@@ -28,13 +30,21 @@ def ask_jev(state_text, goal, options):
             }
         },
     }
-    response = requests.post(
-        JEV_ENDPOINT,
-        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
-        json=request_body,
-        timeout=30,
-    )
-    response.raise_for_status()
+    for attempt, wait in enumerate([5, 30, 120, None], start=1):
+        try:
+            response = requests.post(
+                JEV_ENDPOINT,
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                json=request_body,
+                timeout=30,
+            )
+            response.raise_for_status()
+            break
+        except requests.RequestException as error:
+            if wait is None:
+                raise
+            print(f"   Jev request failed (attempt {attempt}: {error.__class__.__name__}), retrying in {wait}s")
+            time.sleep(wait)
     reply = response.json()
 
     answer = reply["answers"]["action"]

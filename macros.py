@@ -38,7 +38,7 @@ def build_macros(game, state):
         macros[f"go_to_person_{person['sprite']}"] = {
             "kind": "person",
             "sprite": person["sprite"],
-            "description": f"Walk up to the person/object ({direction_to(player, person)}) and face them",
+            "description": f"Walk up to the {person['kind']} ({direction_to(player, person)}) and face it",
         }
 
     for number, sign in enumerate(read_signs(game), start=1):
