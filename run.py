@@ -16,7 +16,7 @@ from state_text import state_to_text
 from surroundings import describe_surroundings
 
 STANDING_GOAL = "Make progress in the main story toward the next badge."
-TEMPERATURE = 0.5  # 1 = sample Jev's probabilities as-is; lower = follow Jev's top choice more often
+DEFAULT_TEMPERATURE = 0.5  # 1 = sample Jev's probabilities as-is; lower = follow Jev's top choice more often
 
 
 def pick_button(probabilities, rng, temperature):
@@ -27,7 +27,7 @@ def pick_button(probabilities, rng, temperature):
     return rng.choices(buttons, weights=weights)[0]
 
 
-def run(steps, watch, start_save, seed, arm, plan_every, stuck_limit, tag):
+def run(steps, watch, start_save, seed, arm, plan_every, stuck_limit, tag, temperature):
     rng = random.Random(seed)
     game = Game(watch=watch)
     state = game.load(start_save)
@@ -36,7 +36,7 @@ def run(steps, watch, start_save, seed, arm, plan_every, stuck_limit, tag):
     sol_history = History(length=30)   # Sol gets a longer view
     goal = STANDING_GOAL
     settings = {"arm": arm, "start_save": start_save, "jev_model": JEV_MODEL, "seed": seed,
-                "temperature": TEMPERATURE, "max_steps": steps, "stuck_limit": stuck_limit, "tag": tag}
+                "temperature": temperature, "max_steps": steps, "stuck_limit": stuck_limit, "tag": tag}
     if arm == "B":
         settings.update({"sol_model": SOL_MODEL, "plan_every": plan_every})
     log = RunLog(f"arm{arm}_seed{seed}" + (f"_{tag}" if tag else ""), settings)
@@ -48,7 +48,7 @@ def run(steps, watch, start_save, seed, arm, plan_every, stuck_limit, tag):
         for step in range(1, steps + 1):
             plan_now = arm == "B" and (step - 1) % plan_every == 0
             state, screen_text, goal, step_costs = play_step(
-                game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now, milestones
+                game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now, milestones, temperature
             )
             costs["jev"] += step_costs["jev"]
             costs["sol"] += step_costs["sol"]
@@ -74,7 +74,7 @@ def run(steps, watch, start_save, seed, arm, plan_every, stuck_limit, tag):
         print(f"Milestones ({milestones.score()}/{len(MILESTONES)}): {milestones.reached}")
 
 
-def play_step(game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now, milestones):
+def play_step(game, step, state, screen_text, history, sol_history, log, rng, goal, plan_now, milestones, temperature):
     surroundings = describe_surroundings(game, state)
     if "collision" in state:
         surroundings.insert(0, describe_front(game, state))
@@ -95,7 +95,7 @@ def play_step(game, step, state, screen_text, history, sol_history, log, rng, go
         print(f"   SOL goal: {goal}")
 
     result = ask_jev(jev_text, goal, options)
-    button = pick_button(result["probabilities"], rng, TEMPERATURE)
+    button = pick_button(result["probabilities"], rng, temperature)
     screen_before = game.emulator.get_screen().copy()
 
     if button in macros:
@@ -153,5 +153,6 @@ if __name__ == "__main__":
     parser.add_argument("--plan-every", type=int, default=15)
     parser.add_argument("--stuck-limit", type=int, default=1000, help="end early after this many steps with no new milestone")
     parser.add_argument("--tag", default="", help="label for this batch of runs, e.g. v2 (used by compare.py)")
+    parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="1 = pick options at Jev's own probabilities")
     args = parser.parse_args()
-    run(args.steps, args.watch, args.start, args.seed, args.arm, args.plan_every, args.stuck_limit, args.tag)
+    run(args.steps, args.watch, args.start, args.seed, args.arm, args.plan_every, args.stuck_limit, args.tag, args.temperature)
