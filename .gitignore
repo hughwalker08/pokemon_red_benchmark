@@ -1,0 +1,19 @@
+# ROMs (never commit)
+*.gb
+*.gbc
+*.gba
+roms/
+
+# Emulator saves and run output
+*.state
+saves/
+runs/
+logs/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.env
+
+.DS_Store
