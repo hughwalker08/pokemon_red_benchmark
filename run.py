@@ -4,7 +4,8 @@ import random
 from actions import allowed_buttons, describe_front
 from config import JEV_MODEL
 from game import Game
-from jev import ask_jev
+from jev import BUTTON_DESCRIPTIONS, ask_jev
+from macros import build_macros, run_macro
 from memory import History, describe_effect
 from run_log import RunLog
 from screen_text import read_screen_text
@@ -56,34 +57,44 @@ def play_step(game, step, state, screen_text, history, log, rng):
     text = state_to_text(state, surroundings, screen_text)
     text += "\n" + history.to_text()
     buttons = allowed_buttons(game, state, screen_text)
-    result = ask_jev(text, STANDING_GOAL, buttons)
+    options = {button: BUTTON_DESCRIPTIONS[button] for button in buttons}
+    macros = {}
+    if not screen_text and "collision" in state:
+        macros = build_macros(game, state)
+        options.update({name: macro["description"] for name, macro in macros.items()})
+
+    result = ask_jev(text, STANDING_GOAL, options)
     button = pick_button(result["probabilities"], rng, TEMPERATURE)
     screen_before = game.emulator.get_screen().copy()
 
-    new_state = game.do(button)
+    if button in macros:
+        new_state, presses = run_macro(game, macros[button])
+        label = macros[button]["description"]
+    else:
+        new_state, presses = game.do(button), 1
+        label = button
     new_screen_text = read_screen_text(game)
     effect = describe_effect(state, new_state, screen_text, new_screen_text)
-    history.record(button, effect)
+    history.record(label, effect)
 
     log.log_step(step, {
         "map": state["map"]["map_name"],
         "position": state["player"]["position"],
         "state_text": text,
         "goal": STANDING_GOAL,
-        "buttons_offered": buttons,
+        "options_offered": options,
         "jev_top_choice": result["button"],
         "button": button,
+        "presses": presses,
         "confidence": result["confidence"],
         "probabilities": result["probabilities"],
         "cost": result["cost"],
         "effect": effect,
     }, screen_before)
 
-    ranked = sorted(result["probabilities"].items(), key=lambda item: item[1], reverse=True)
-    top = ", ".join(f"{button} {p:.2f}" for button, p in ranked[:3])
     position = new_state["player"]["position"]
     print(f"step {step:4}  {new_state['map']['map_name']} ({position['x']},{position['y']})")
-    print(f"           pressed {button:6} (Jev's top: {result['button']}, confidence {result['confidence']:.2f})   top: {top}   -> {effect}")
+    print(f"           did {label[:45]:45} (Jev's top: {result['button']}, conf {result['confidence']:.2f})   -> {effect}")
 
     return new_state, new_screen_text, result["cost"]
 

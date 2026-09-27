@@ -6,6 +6,7 @@ HEIGHT = 18
 
 CHARACTERS = dict(GEN1_ENCODING)
 CHARACTERS.update({0x9A: "(", 0x9B: ")", 0x9C: ":", 0xBA: "é", 0xED: "▶", 0xEE: "▼", 0xEF: "♂"})
+CHARACTERS.update({0xBB: "'d", 0xBC: "'l", 0xBD: "'s", 0xBE: "'t", 0xBF: "'v", 0xE4: "'r", 0xE5: "'m"})
 
 
 def read_screen_text(game):

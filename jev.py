@@ -13,10 +13,10 @@ BUTTON_DESCRIPTIONS = {
     "select": "rarely useful",
 }
 
-INSTRUCTIONS = "You are playing Pokemon Red. Pick the single button press that makes the most progress toward the goal."
+INSTRUCTIONS = "You are playing Pokemon Red. Pick the single option that makes the most progress toward the goal."
 
 
-def ask_jev(state_text, goal, buttons):
+def ask_jev(state_text, goal, options):
     request_body = {
         "model": JEV_MODEL,
         "state": {"goal": goal, "game": state_text},
@@ -24,7 +24,7 @@ def ask_jev(state_text, goal, buttons):
             "action": {
                 "type": "choice",
                 "instructions": INSTRUCTIONS,
-                "criteria": {button: BUTTON_DESCRIPTIONS[button] for button in buttons},
+                "criteria": options,
             }
         },
     }
