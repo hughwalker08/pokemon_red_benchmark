@@ -10,7 +10,10 @@ def describe_effect(before, after, text_before, text_after):
     if after["player"]["facing"] != before["player"]["facing"]:
         return f"turned to face {after['player']['facing']}"
     if text_after != text_before:
-        return "on-screen text changed" if text_after else "text box closed"
+        if not text_after:
+            return "text box closed"
+        words = " ".join(line.strip() for line in text_after)
+        return f'text: "{words[:80]}"'
     return "nothing changed"
 
 

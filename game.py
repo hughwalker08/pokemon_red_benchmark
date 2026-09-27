@@ -7,6 +7,8 @@ from pyboy import PyBoy
 ROM_PATH = "roms/pokemon_red.gb"
 BUTTONS = ["up", "down", "left", "right", "a", "b", "start", "select"]
 MAP_ID = 0xD35E  # which map you're on; when it changes, the screen fades and input is ignored
+SCREEN = 0xC3A0  # the 20x18 tiles currently on screen
+SCREEN_SIZE = 20 * 18
 
 
 class Game:
@@ -35,7 +37,20 @@ class Game:
         self.emulator.tick(12)
         if self.read_memory(MAP_ID) != map_before:
             self.emulator.tick(120)
+        self.wait_for_screen_to_settle()
         return self.get_state()
+
+    def wait_for_screen_to_settle(self, max_frames=180):
+        previous = self.screen_tiles()
+        for _ in range(max_frames // 6):
+            self.emulator.tick(6)
+            current = self.screen_tiles()
+            if current == previous:
+                return
+            previous = current
+
+    def screen_tiles(self):
+        return [self.read_memory(SCREEN + i) for i in range(SCREEN_SIZE)]
 
     def load(self, save_name):
         self.emulator.load_state(f"saves/{save_name}.state")
