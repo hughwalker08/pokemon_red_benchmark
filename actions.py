@@ -19,10 +19,14 @@ def square_position(state, direction):
     return {"x": player["x"] + x_change, "y": player["y"] + y_change}
 
 
+def person_at(game, position):
+    return any(p["x"] == position["x"] and p["y"] == position["y"] for p in read_people(game))
+
+
 def is_blocked(game, state, direction):
     if not square_walkable(state, direction):
         return True
-    return square_position(state, direction) in read_people(game)
+    return person_at(game, square_position(state, direction))
 
 
 def standing_on_exit(game, state):
@@ -33,7 +37,7 @@ def standing_on_exit(game, state):
 def describe_front(game, state):
     facing = state["player"]["facing"]
     target = square_position(state, facing)
-    if target in read_people(game):
+    if person_at(game, target):
         front = "In front of you: a person or object"
     elif any(warp["x"] == target["x"] and warp["y"] == target["y"] for warp in read_warps(game)):
         front = "In front of you: an exit"

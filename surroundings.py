@@ -49,7 +49,7 @@ def read_people(game):
             continue
         y = game.read_memory(SPRITE_DATA_2 + 16 * i + 4) - 4
         x = game.read_memory(SPRITE_DATA_2 + 16 * i + 5) - 4
-        people.append({"x": x, "y": y})
+        people.append({"x": x, "y": y, "sprite": i})
     return people
 
 
