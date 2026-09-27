@@ -1,10 +1,8 @@
-from pokemon_agent.collision import PLAYER_COL, PLAYER_ROW
-
+from fullmap import FullMap
 from pathfinder import find_path
 from screen_text import read_screen_text
 from surroundings import MAP_HEIGHT, MAP_WIDTH, direction_to, read_edges, read_people, read_signs, read_warps
 
-EDGE_TARGET = {"north": (-20, 0), "south": (20, 0), "west": (0, -20), "east": (0, 20)}
 EDGE_DIRECTION = {"north": "up", "south": "down", "west": "left", "east": "right"}
 
 
@@ -64,8 +62,8 @@ def build_macros(game, state):
     return macros
 
 
-def to_grid(player, thing):
-    return (PLAYER_ROW + thing["y"] - player["y"], PLAYER_COL + thing["x"] - player["x"])
+def same_square(a, b):
+    return a["x"] == b["x"] and a["y"] == b["y"]
 
 
 def direction_towards(player, thing):
@@ -90,12 +88,41 @@ def push_direction(game, player, last_direction):
     return last_direction
 
 
-def run_macro(game, macro, max_presses=40):
+def edge_squares(full_map, side):
+    """Every square just past the given edge; reaching any of them crosses into the next map."""
+    rows = range(len(full_map.grid))
+    cols = range(len(full_map.grid[0]))
+    if side == "north":
+        return {(full_map.offset - 1, c) for c in cols}
+    if side == "south":
+        return {(full_map.offset + full_map.height, c) for c in cols}
+    if side == "west":
+        return {(r, full_map.offset - 1) for r in rows}
+    return {(r, full_map.offset + full_map.width) for r in rows}
+
+
+def edge_goal(full_map, player, side):
+    """A square just beyond the given edge, in line with the player."""
+    x, y = player["x"], player["y"]
+    if side == "north":
+        y = -1
+    elif side == "south":
+        y = full_map.height
+    elif side == "west":
+        x = -1
+    else:
+        x = full_map.width
+    return full_map.to_grid(x, y)
+
+
+def run_macro(game, macro, max_presses=60):
     state = game.get_state()
     start_map = state["map"]["map_name"]
     last_direction = state["player"]["facing"]
     presses = 0
     stuck_presses = 0
+    full_map = FullMap(game)
+    other_doors = [w for w in read_warps(game) if macro["kind"] != "exit" or not same_square(w, macro["target"])]
 
     while presses < max_presses:
         if state["map"]["map_name"] != start_map or read_screen_text(game) or "collision" not in state:
@@ -103,15 +130,16 @@ def run_macro(game, macro, max_presses=40):
 
         player = state["player"]["position"]
         people = read_people(game)
-        blocked = {to_grid(player, p) for p in people}
+        blocked = {full_map.to_grid(p["x"], p["y"]) for p in people}
+        blocked |= {full_map.to_grid(w["x"], w["y"]) for w in other_doors if not same_square(w, player)}
 
         if macro["kind"] == "exit":
             target = macro["target"]
-            if (player["x"], player["y"]) == (target["x"], target["y"]):
+            if same_square(player, target):
                 state = game.do(push_direction(game, player, last_direction))
                 presses += 1
                 break
-            goal = to_grid(player, target)
+            goal = full_map.to_grid(target["x"], target["y"])
         elif macro["kind"] in ("person", "sign"):
             if macro["kind"] == "person":
                 thing = next((p for p in people if p["sprite"] == macro["sprite"]), None)
@@ -125,12 +153,14 @@ def run_macro(game, macro, max_presses=40):
                     state = game.do(facing)
                     presses += 1
                 break
-            goal = to_grid(player, thing)
+            goal = full_map.to_grid(thing["x"], thing["y"])
         else:
-            row_change, col_change = EDGE_TARGET[macro["side"]]
-            goal = (PLAYER_ROW + row_change, PLAYER_COL + col_change)
+            goal = edge_goal(full_map, player, macro["side"])
 
-        path = find_path(state["collision"]["walkable"], (PLAYER_ROW, PLAYER_COL), goal, blocked)
+        start = full_map.to_grid(player["x"], player["y"])
+        full_map.grid[start[0]][start[1]] = True
+        goals = edge_squares(full_map, macro["side"]) if macro["kind"] == "edge" else None
+        path = find_path(full_map.grid, start, goal, blocked, goals)
         if not path:
             if macro["kind"] != "edge":
                 break
